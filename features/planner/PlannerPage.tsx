@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Sparkles, Loader2, CheckCircle, File, Clock, Send, XCircle } from 'lucide-react';
 import { api, PlannedPost, PostStatus } from '../../services/api';
 
@@ -7,19 +7,15 @@ const PlannerPage: React.FC = () => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState('');
     const [updatingPosts, setUpdatingPosts] = useState<Set<string>>(new Set());
-
+    
     const [inputs, setInputs] = useState({
         cadence: '3 posts per week',
         pillars: 'Education, Clinic Culture, Service Promotion, Patient Testimonials',
         blackout_dates: 'None',
         events: 'Flu shot campaign starts October 1st'
     });
-
+    
     const [currentDate, setCurrentDate] = useState(new Date());
-
-    // Use ref to track if we're actively updating to prevent race conditions
-    const isUpdatingRef = useRef(false);
-    const planLengthRef = useRef(0);
 
     const statusConfig: { [key in PostStatus]: { icon: React.ElementType; borderColor: string; textColor: string; label: string } } = {
         draft: { icon: File, borderColor: 'border-blue-500', textColor: 'text-blue-500', label: 'Draft' },
@@ -29,26 +25,16 @@ const PlannerPage: React.FC = () => {
         failed: { icon: XCircle, borderColor: 'border-red-500', textColor: 'text-red-500', label: 'Failed' }
     };
 
-    // Update the ref whenever plan changes
-    useEffect(() => {
-        planLengthRef.current = plan.length;
-    }, [plan.length]);
-
     useEffect(() => {
         // Poll for plan updates every 5 seconds to reflect worker changes
         const intervalId = setInterval(async () => {
-            // Only poll if we have a plan and we're not actively updating
-            if (planLengthRef.current > 0 && !isUpdatingRef.current) {
-                try {
-                    const updatedPlan = await api.getPlan();
-                    setPlan(updatedPlan);
-                } catch (error) {
-                    console.error('Failed to poll for plan updates:', error);
-                }
+            if (plan.length > 0) {
+                 const updatedPlan = await api.getPlan();
+                 setPlan(updatedPlan);
             }
         }, 5000);
         return () => clearInterval(intervalId);
-    }, []); // Empty dependency array - create interval once
+    }, [plan.length]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -73,10 +59,7 @@ const PlannerPage: React.FC = () => {
         const originalPlan = [...plan];
         const postToUpdate = plan.find(p => p.id === postId);
         if (!postToUpdate) return;
-
-        // Set updating flag to prevent race conditions with polling
-        isUpdatingRef.current = true;
-
+        
         // Optimistic UI update
         const updatedPost = { ...postToUpdate, ...updates };
         setPlan(prevPlan => prevPlan.map(p => p.id === postId ? updatedPost : p));
@@ -95,21 +78,12 @@ const PlannerPage: React.FC = () => {
                 newSet.delete(postId);
                 return newSet;
             });
-            // Clear updating flag
-            isUpdatingRef.current = false;
         }
     };
 
     const handleDrop = (e: React.DragEvent<HTMLDivElement>, date: string) => {
         e.preventDefault();
         const postId = e.dataTransfer.getData("postId");
-
-        // Validate postId exists
-        if (!postId || !plan.find(p => p.id === postId)) {
-            console.warn('Invalid postId in drop operation:', postId);
-            return;
-        }
-
         updatePostState(postId, { date });
     };
 

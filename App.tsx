@@ -10,28 +10,25 @@ import CompliancePage from './features/compliance/CompliancePage';
 import BrandRagPage from './features/rag/BrandRagPage';
 import ConnectionsPage from './features/settings/ConnectionsPage';
 import CompetitorAnalysisPage from './features/competitors/CompetitorAnalysisPage';
-import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   return (
-    <ErrorBoundary>
-      <HashRouter>
-        <Routes>
-          <Route path="/" element={<MainLayout />}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="planner" element={<PlannerPage />} />
-            <Route path="inbox" element={<InboxPage />} />
-            <Route path="content-studio" element={<ContentStudioPage />} />
-            <Route path="analytics" element={<AnalyticsPage />} />
-            <Route path="compliance" element={<CompliancePage />} />
-            <Route path="brand-rag" element={<BrandRagPage />} />
-            <Route path="settings" element={<ConnectionsPage />} />
-            <Route path="competitor-analysis" element={<CompetitorAnalysisPage />} />
-          </Route>
-        </Routes>
-      </HashRouter>
-    </ErrorBoundary>
+    <HashRouter>
+      <Routes>
+        <Route path="/" element={<MainLayout />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="planner" element={<PlannerPage />} />
+          <Route path="inbox" element={<InboxPage />} />
+          <Route path="content-studio" element={<ContentStudioPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="compliance" element={<CompliancePage />} />
+          <Route path="brand-rag" element={<BrandRagPage />} />
+          <Route path="settings" element={<ConnectionsPage />} />
+          <Route path="competitor-analysis" element={<CompetitorAnalysisPage />} />
+        </Route>
+      </Routes>
+    </HashRouter>
   );
 }
 

@@ -4,18 +4,6 @@ import { CommentDto } from '../dto/CommentDto';
 import { InsightsDto } from '../dto/InsightsDto';
 import { PostDto } from '../dto/PostDto';
 
-// Helper function for UUID generation (browser-compatible)
-const generateUUID = (): string => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
-
 export class InstagramConnector extends BaseConnector {
   constructor() {
     super('Instagram');
@@ -30,14 +18,14 @@ export class InstagramConnector extends BaseConnector {
   async createPost(post: PostDto): Promise<{ id: string; }> {
     console.log(`[${this.provider}] Creating post:`, post);
     await this.handleRateLimit();
-    return { id: `ig_post_${generateUUID()}` };
+    return { id: `ig_post_${crypto.randomUUID()}` };
   }
 
   async listComments(postId: string): Promise<CommentDto[]> {
     console.log(`[${this.provider}] Listing comments for post ${postId}`);
     await this.handleRateLimit();
     return [{
-      id: `ig_comment_${generateUUID()}`,
+      id: `ig_comment_${crypto.randomUUID()}`,
       postId,
       author: { id: 'user456', name: 'InstaUser' },
       text: 'Love this!',
@@ -49,6 +37,6 @@ export class InstagramConnector extends BaseConnector {
   async replyToComment(commentId: string, text: string): Promise<{ id: string; }> {
     console.log(`[${this.provider}] Replying to comment ${commentId} with: "${text}"`);
     await this.handleRateLimit();
-    return { id: `ig_reply_${generateUUID()}` };
+    return { id: `ig_reply_${crypto.randomUUID()}` };
   }
 }

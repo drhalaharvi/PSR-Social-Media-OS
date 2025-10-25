@@ -4,18 +4,6 @@ import { CommentDto } from '../dto/CommentDto';
 import { InsightsDto } from '../dto/InsightsDto';
 import { PostDto } from '../dto/PostDto';
 
-// Helper function for UUID generation (browser-compatible)
-const generateUUID = (): string => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
-
 export class YouTubeConnector extends BaseConnector {
   constructor() {
     super('YouTube');
@@ -31,14 +19,14 @@ export class YouTubeConnector extends BaseConnector {
   async createPost(post: PostDto): Promise<{ id: string; }> {
     console.log(`[${this.provider}] Creating community post or uploading video:`, post);
     await this.handleRateLimit();
-    return { id: `yt_video_${generateUUID()}` };
+    return { id: `yt_video_${crypto.randomUUID()}` };
   }
 
   async listComments(videoId: string): Promise<CommentDto[]> {
     console.log(`[${this.provider}] Listing comments for video ${videoId}`);
     await this.handleRateLimit();
     return [{
-      id: `yt_comment_${generateUUID()}`,
+      id: `yt_comment_${crypto.randomUUID()}`,
       postId: videoId,
       author: { id: 'user112', name: 'YouTube Viewer' },
       text: 'Great video, thanks for sharing!',
@@ -50,6 +38,6 @@ export class YouTubeConnector extends BaseConnector {
   async replyToComment(commentId: string, text: string): Promise<{ id: string; }> {
     console.log(`[${this.provider}] Replying to comment ${commentId} with: "${text}"`);
     await this.handleRateLimit();
-    return { id: `yt_reply_${generateUUID()}` };
+    return { id: `yt_reply_${crypto.randomUUID()}` };
   }
 }
