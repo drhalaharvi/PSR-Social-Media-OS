@@ -29,18 +29,20 @@ const Chatbot: React.FC = () => {
     if (!inputValue.trim() || isLoading) return;
 
     const userMessage: ChatMessage = { role: 'user', text: inputValue };
+    const userInput = inputValue; // Store the input value before clearing
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
 
     try {
-      // The history needs to be in the format the Gemini API expects
-      const historyForApi = messages.map(msg => ({
+      // Create the full history INCLUDING the new user message
+      // This ensures the AI has the complete conversation context
+      const fullHistory = [...messages, userMessage].map(msg => ({
         role: msg.role,
         parts: [{ text: msg.text }]
       }));
 
-      const modelResponseText = await api.getChatbotResponse(inputValue, historyForApi);
+      const modelResponseText = await api.getChatbotResponse(userInput, fullHistory);
       const modelMessage: ChatMessage = { role: 'model', text: modelResponseText };
       setMessages(prev => [...prev, modelMessage]);
 
