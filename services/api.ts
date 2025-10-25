@@ -2,6 +2,24 @@
 import { GoogleGenAI, GenerateContentParameters, Type } from "@google/genai";
 import { getProviders, connectionStore } from './secrets';
 
+// Helper function for UUID generation (browser-compatible)
+const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
+// Configuration for simulated failures (for testing error handling)
+const SIMULATE_FAILURES = false; // Set to true to test error handling
+const UPDATE_POST_FAILURE_RATE = 0.0; // 0% failure rate (was 10%)
+const PUBLISH_POST_FAILURE_RATE = 0.0; // 0% failure rate (was 15%)
+
 // --- TYPES ---
 interface HealthStatus {
   ok: boolean;
@@ -185,7 +203,7 @@ export const api = {
         });
 
         const planJson = JSON.parse(response.text);
-        masterPlan = planJson.map((item: any) => ({ ...item, id: crypto.randomUUID(), status: 'draft' }));
+        masterPlan = planJson.map((item: any) => ({ ...item, id: generateUUID(), status: 'draft' }));
         return masterPlan;
     } catch (error) {
         console.error("Error generating plan:", error);
@@ -195,12 +213,15 @@ export const api = {
 
   updatePost: async(post: PlannedPost): Promise<PlannedPost> => {
      console.log("Updating post:", post.id, "New date:", post.date, "Status:", post.status);
-     // Simulate network delay and potential failure
+     // Simulate network delay
      await new Promise(res => setTimeout(res, 600));
-     if (Math.random() < 0.1) { // 10% chance of failure
+
+     // Only simulate failures if enabled (for testing error handling)
+     if (SIMULATE_FAILURES && Math.random() < UPDATE_POST_FAILURE_RATE) {
         console.error("Mock API Error: Failed to update post", post.id);
         throw new Error("Failed to save post update.");
      }
+
      const postIndex = masterPlan.findIndex(p => p.id === post.id);
      if (postIndex !== -1) {
         masterPlan[postIndex] = post;
@@ -364,11 +385,11 @@ export const api = {
 
   createExperiment: async (name: string, variants: string[]): Promise<Experiment> => {
     const newExperiment: Experiment = {
-        id: `exp_${crypto.randomUUID()}`,
+        id: `exp_${generateUUID()}`,
         name,
         status: 'Running',
         variants: variants.map(v => ({
-            id: `var_${crypto.randomUUID()}`,
+            id: `var_${generateUUID()}`,
             name: v,
             impressions: 0,
             clicks: 0,
@@ -385,23 +406,63 @@ export const api = {
     if (!experiment) throw new Error("Experiment not found.");
 
     // True CTRs for the simulation (unknown to the bandit)
-    const trueCTRs = experiment.variants.map(() => Math.random() * 0.1); 
+    const trueCTRs = experiment.variants.map(() => Math.random() * 0.1);
     console.log("Simulation True CTRs:", trueCTRs);
 
+    // Helper function to generate a sample from Beta(alpha, beta) distribution
+    const sampleBeta = (alpha: number, beta: number): number => {
+      // Using Gamma distribution to sample from Beta
+      // Beta(a,b) = Gamma(a) / (Gamma(a) + Gamma(b))
+      const gammaA = sampleGamma(alpha, 1);
+      const gammaB = sampleGamma(beta, 1);
+      return gammaA / (gammaA + gammaB);
+    };
+
+    // Helper function to generate a sample from Gamma(shape, scale) distribution
+    const sampleGamma = (shape: number, scale: number): number => {
+      // Using Marsaglia and Tsang's method for shape >= 1
+      if (shape >= 1) {
+        const d = shape - 1/3;
+        const c = 1 / Math.sqrt(9 * d);
+
+        while (true) {
+          let x, v;
+          do {
+            x = normalRandom();
+            v = 1 + c * x;
+          } while (v <= 0);
+
+          v = v * v * v;
+          const u = Math.random();
+          const x2 = x * x;
+
+          if (u < 1 - 0.0331 * x2 * x2) {
+            return d * v * scale;
+          }
+          if (Math.log(u) < 0.5 * x2 + d * (1 - v + Math.log(v))) {
+            return d * v * scale;
+          }
+        }
+      } else {
+        // For shape < 1, use shape + 1 and adjust
+        return sampleGamma(shape + 1, scale) * Math.pow(Math.random(), 1 / shape);
+      }
+    };
+
+    // Helper function for standard normal random variable (Box-Muller transform)
+    const normalRandom = (): number => {
+      const u1 = Math.random();
+      const u2 = Math.random();
+      return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+    };
+
     for (let i = 0; i < iterations; i++) {
-        // Thompson Sampling: sample from the Beta distribution for each variant
-        const samples = experiment.variants.map(v => {
-            // Basic Beta sampler (in reality, use a library)
-            const a = v.alpha, b = v.beta;
-            let sample = 0;
-            for(let j=0; j<a; j++) sample += Math.log(Math.random());
-            for(let j=0; j<b; j++) sample -= Math.log(Math.random());
-            return Math.exp(sample / (a + b));
-        });
+        // Thompson Sampling: sample from Beta(alpha, beta) for each variant
+        const samples = experiment.variants.map(v => sampleBeta(v.alpha, v.beta));
 
         const bestVariantIndex = samples.indexOf(Math.max(...samples));
         const chosenVariant = experiment.variants[bestVariantIndex];
-        
+
         // Simulate an impression and a click based on the true CTR
         chosenVariant.impressions += 1;
         if (Math.random() < trueCTRs[bestVariantIndex]) {
@@ -460,7 +521,9 @@ export const api = {
   // --- CONNECTOR APIS ---
   getProviders: async () => getProviders(),
   updateApiKeyConnection: async (providerId: string, key: string, secret: string) => {
-    console.log(`Connecting ${providerId} with key: ${key}`);
+    // SECURITY: Never log credentials in production
+    console.log(`Connecting ${providerId}...`);
+
     const provider = connectionStore[providerId];
     if (provider && provider.authType === 'apikey') {
         provider.connected = true;
@@ -478,26 +541,39 @@ export const api = {
 };
 
 // --- MOCK WORKER ---
+// Track active publishing timeouts to prevent memory leaks
+const activePublishingTimeouts = new Map<string, number>();
+
 const runScheduler = () => {
   setInterval(() => {
     masterPlan.forEach(post => {
-        if (post.status === 'approved') {
+        // Only process approved posts that haven't been scheduled yet
+        if (post.status === 'approved' && !activePublishingTimeouts.has(post.id)) {
             post.status = 'scheduled';
             console.log(`[WORKER] Post ${post.id} is now scheduled.`);
-            
-            setTimeout(() => {
-                // Simulate publishing, with a chance of failure
-                if (Math.random() < 0.15) {
+
+            // Store the timeout so we can track and clean it up
+            const timeoutId = setTimeout(() => {
+                // Simulate publishing with optional failure simulation
+                if (SIMULATE_FAILURES && Math.random() < PUBLISH_POST_FAILURE_RATE) {
                     post.status = 'failed';
                     console.error(`[WORKER] Post ${post.id} failed to publish.`);
                 } else {
                     post.status = 'published';
                     console.log(`[WORKER] Post ${post.id} has been published.`);
                 }
+                // Clean up the timeout from our tracking map
+                activePublishingTimeouts.delete(post.id);
             }, 5000); // 5 second delay to simulate publishing time
+
+            // Track this timeout
+            activePublishingTimeouts.set(post.id, timeoutId);
         }
     });
   }, 10000); // Check for approved posts every 10 seconds
 };
 
-runScheduler();
+// Only run scheduler if in a browser environment (not during SSR or testing)
+if (typeof window !== 'undefined') {
+  runScheduler();
+}

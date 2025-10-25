@@ -14,7 +14,27 @@ export interface Provider {
   fields?: { name: string; label: string; type: string }[];
 }
 
+/**
+ * SECURITY WARNING: This is a MOCK implementation for development only.
+ *
+ * PRODUCTION REQUIREMENTS:
+ * 1. NEVER store credentials in browser memory or localStorage
+ * 2. Use a secure backend service to store credentials
+ * 3. Encrypt credentials at rest using industry-standard encryption (AES-256)
+ * 4. Use environment variables for server-side API keys
+ * 5. Implement proper OAuth 2.0 flows with secure token storage
+ * 6. Use HttpOnly cookies for session tokens
+ * 7. Implement proper CORS and CSRF protection
+ * 8. Use a secrets management service (e.g., AWS Secrets Manager, HashiCorp Vault)
+ * 9. Rotate credentials regularly
+ * 10. Never log or expose credentials in error messages
+ *
+ * This mock implementation is for UI/UX development only and should NOT be
+ * deployed to production without a complete security overhaul.
+ */
+
 // In-memory store to simulate fetching and updating connection statuses
+// WARNING: This stores credentials in plaintext in browser memory - DO NOT USE IN PRODUCTION!
 export const connectionStore: Record<string, Provider> = {
   instagram: {
     id: 'instagram',

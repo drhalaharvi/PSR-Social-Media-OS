@@ -5,6 +5,18 @@ import { ReviewDto } from '../dto/ReviewDto';
 // GBP doesn't have traditional insights or comments in the same way
 import { InsightsDto } from '../dto/InsightsDto';
 
+// Helper function for UUID generation (browser-compatible)
+const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 export class GoogleBusinessProfileConnector extends BaseConnector {
   constructor() {
     super('Google Business Profile');
@@ -20,7 +32,7 @@ export class GoogleBusinessProfileConnector extends BaseConnector {
   async createPost(post: PostDto): Promise<{ id: string; }> {
     console.log(`[${this.provider}] Creating post (update):`, post);
     await this.handleRateLimit();
-    return { id: `gbp_post_${crypto.randomUUID()}` };
+    return { id: `gbp_post_${generateUUID()}` };
   }
 
   // Not applicable to GBP
@@ -29,17 +41,17 @@ export class GoogleBusinessProfileConnector extends BaseConnector {
     return [];
   }
 
-  // Not applicable to GBP
+  // Not applicable to GBP - Fixed to return valid ID
   async replyToComment(commentId: string, text: string): Promise<{ id: string; }> {
     console.warn(`[${this.provider}] replyToComment is not applicable.`);
-    return { id: '' };
+    return { id: `gbp_not_applicable_${generateUUID()}` };
   }
 
   async listReviews(): Promise<ReviewDto[]> {
     console.log(`[${this.provider}] Listing reviews.`);
     await this.handleRateLimit();
     return [{
-      id: `gbp_review_${crypto.randomUUID()}`,
+      id: `gbp_review_${generateUUID()}`,
       authorName: 'Jane Smith',
       rating: 5,
       text: 'Excellent service and friendly staff!',
